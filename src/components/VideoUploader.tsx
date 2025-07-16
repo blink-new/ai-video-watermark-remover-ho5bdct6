@@ -14,16 +14,10 @@ export function VideoUploader({ onVideoSelect, isProcessing }: VideoUploaderProp
   const [error, setError] = useState<string | null>(null)
 
   const validateFile = (file: File): boolean => {
-    const maxSize = 100 * 1024 * 1024 // 100MB
     const allowedTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/mkv', 'video/webm']
     
     if (!allowedTypes.includes(file.type)) {
       setError('Please upload a valid video file (MP4, AVI, MOV, MKV, WebM)')
-      return false
-    }
-    
-    if (file.size > maxSize) {
-      setError('File size must be less than 100MB')
       return false
     }
     
@@ -103,7 +97,7 @@ export function VideoUploader({ onVideoSelect, isProcessing }: VideoUploaderProp
           
           <div className="space-y-2 text-sm text-muted-foreground mb-6">
             <p>Supported formats: MP4, AVI, MOV, MKV, WebM</p>
-            <p>Maximum file size: 100MB</p>
+            <p>No file size limits - upload videos of any size</p>
           </div>
           
           <input
