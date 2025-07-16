@@ -6,11 +6,16 @@ import { VideoPreview } from './components/VideoPreview'
 import { Card } from './components/ui/card'
 import { Badge } from './components/ui/badge'
 import { blink } from './blink/client'
+import { VideoProcessor, ProcessingProgress } from './utils/videoProcessor'
 
 interface ProcessingState {
   isProcessing: boolean
   progress: number
   currentStep: string
+  currentFrame?: number
+  totalFrames?: number
+  detectedWatermarks?: number
+  message?: string
 }
 
 function App() {
@@ -18,11 +23,14 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [processedVideoUrl, setProcessedVideoUrl] = useState<string | null>(null)
+  const [processedVideoBlob, setProcessedVideoBlob] = useState<Blob | null>(null)
   const [processingState, setProcessingState] = useState<ProcessingState>({
     isProcessing: false,
     progress: 0,
-    currentStep: ''
+    currentStep: '',
+    message: ''
   })
+  const [processingError, setProcessingError] = useState<string | null>(null)
 
   useEffect(() => {
     const unsubscribe = blink.auth.onAuthStateChanged((state) => {
@@ -32,44 +40,66 @@ function App() {
     return unsubscribe
   }, [])
 
-  const simulateProcessing = async (file: File) => {
-    setProcessingState({ isProcessing: true, progress: 0, currentStep: 'upload' })
+  const processVideo = async (file: File) => {
+    setProcessingError(null)
+    setProcessedVideoUrl(null)
+    setProcessedVideoBlob(null)
     
-    // Upload step
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setProcessingState({ isProcessing: true, progress: 25, currentStep: 'analyze' })
-    
-    // Analyze step
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setProcessingState({ isProcessing: true, progress: 50, currentStep: 'detect' })
-    
-    // Detect step
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setProcessingState({ isProcessing: true, progress: 75, currentStep: 'remove' })
-    
-    // Remove step
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setProcessingState({ isProcessing: true, progress: 100, currentStep: 'complete' })
-    
-    // Complete
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    // For demo purposes, we'll use the original file as the "processed" result
-    const processedUrl = URL.createObjectURL(file)
-    setProcessedVideoUrl(processedUrl)
-    setProcessingState({ isProcessing: false, progress: 100, currentStep: 'complete' })
+    try {
+      const processor = new VideoProcessor()
+      
+      const processedBlob = await processor.processVideo(file, (progress: ProcessingProgress) => {
+        setProcessingState({
+          isProcessing: true,
+          progress: progress.progress,
+          currentStep: progress.stage,
+          currentFrame: progress.currentFrame,
+          totalFrames: progress.totalFrames,
+          detectedWatermarks: progress.detectedWatermarks,
+          message: progress.message
+        })
+      })
+      
+      // Create URL for the processed video
+      const processedUrl = URL.createObjectURL(processedBlob)
+      setProcessedVideoUrl(processedUrl)
+      setProcessedVideoBlob(processedBlob)
+      
+      setProcessingState({
+        isProcessing: false,
+        progress: 100,
+        currentStep: 'complete',
+        message: 'Video processing completed successfully!'
+      })
+      
+    } catch (error) {
+      console.error('Video processing failed:', error)
+      setProcessingError(error instanceof Error ? error.message : 'Processing failed')
+      setProcessingState({
+        isProcessing: false,
+        progress: 0,
+        currentStep: '',
+        message: 'Processing failed'
+      })
+    }
   }
 
   const handleVideoSelect = async (file: File) => {
     setSelectedFile(file)
-    setProcessedVideoUrl(null)
-    await simulateProcessing(file)
+    await processVideo(file)
   }
 
   const handleReset = () => {
     setSelectedFile(null)
     setProcessedVideoUrl(null)
-    setProcessingState({ isProcessing: false, progress: 0, currentStep: '' })
+    setProcessedVideoBlob(null)
+    setProcessingError(null)
+    setProcessingState({ 
+      isProcessing: false, 
+      progress: 0, 
+      currentStep: '',
+      message: ''
+    })
   }
 
   if (loading) {
@@ -127,10 +157,10 @@ function App() {
           {!selectedFile && !processingState.isProcessing && (
             <div className="text-center max-w-3xl mx-auto mb-12">
               <h2 className="text-4xl font-bold text-foreground mb-4">
-                Remove Watermarks with AI Precision
+                Complete Watermark Removal with AI Precision
               </h2>
               <p className="text-xl text-muted-foreground mb-8">
-                Our advanced AI analyzes every frame of your video to detect and seamlessly remove watermarks while preserving video quality.
+                Our advanced AI analyzes every single frame of your video to detect watermarks at any location and timestamp, then intelligently removes them while preserving original video quality.
               </p>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -138,24 +168,24 @@ function App() {
                   <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Sparkles className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-medium text-foreground mb-2">AI-Powered Detection</h3>
-                  <p className="text-sm text-muted-foreground">Advanced algorithms analyze every frame to identify watermarks with high accuracy</p>
+                  <h3 className="font-medium text-foreground mb-2">Complete Frame Analysis</h3>
+                  <p className="text-sm text-muted-foreground">AI analyzes every single frame to detect watermarks at any location, timestamp, or pixel position</p>
                 </Card>
                 
                 <Card className="p-6 text-center bg-gradient-to-br from-accent/5 to-accent/10 border-accent/20">
                   <div className="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Shield className="w-6 h-6 text-accent" />
                   </div>
-                  <h3 className="font-medium text-foreground mb-2">Quality Preservation</h3>
-                  <p className="text-sm text-muted-foreground">Maintains original video quality while seamlessly removing unwanted watermarks</p>
+                  <h3 className="font-medium text-foreground mb-2">Intelligent Removal</h3>
+                  <p className="text-sm text-muted-foreground">AI inpainting technology removes watermarks from any screen location while preserving original content</p>
                 </Card>
                 
                 <Card className="p-6 text-center bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20">
                   <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Zap className="w-6 h-6 text-orange-500" />
                   </div>
-                  <h3 className="font-medium text-foreground mb-2">Fast Processing</h3>
-                  <p className="text-sm text-muted-foreground">Efficient processing pipeline delivers results quickly without compromising quality</p>
+                  <h3 className="font-medium text-foreground mb-2">Comprehensive Coverage</h3>
+                  <p className="text-sm text-muted-foreground">Detects and removes watermarks regardless of position, size, transparency, or duration in video</p>
                 </Card>
               </div>
             </div>
@@ -174,12 +204,18 @@ function App() {
             isProcessing={processingState.isProcessing}
             progress={processingState.progress}
             currentStep={processingState.currentStep}
+            currentFrame={processingState.currentFrame}
+            totalFrames={processingState.totalFrames}
+            detectedWatermarks={processingState.detectedWatermarks}
+            message={processingState.message}
+            error={processingError}
           />
 
           {/* Video Preview */}
           <VideoPreview 
             originalFile={selectedFile}
             processedVideoUrl={processedVideoUrl}
+            processedVideoBlob={processedVideoBlob}
             onReset={handleReset}
           />
         </div>

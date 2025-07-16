@@ -7,17 +7,32 @@ interface ProcessingStatusProps {
   isProcessing: boolean
   progress: number
   currentStep: string
+  currentFrame?: number
+  totalFrames?: number
+  detectedWatermarks?: number
+  message?: string
+  error?: string | null
 }
 
 const processingSteps = [
-  { id: 'upload', label: 'Uploading video', icon: Loader2, color: 'text-blue-500' },
-  { id: 'analyze', label: 'Analyzing frames', icon: Eye, color: 'text-purple-500' },
-  { id: 'detect', label: 'Detecting watermarks', icon: Zap, color: 'text-orange-500' },
-  { id: 'remove', label: 'Removing watermarks', icon: Sparkles, color: 'text-green-500' },
+  { id: 'extracting', label: 'Extracting frames', icon: Loader2, color: 'text-blue-500' },
+  { id: 'analyzing', label: 'Analyzing frames', icon: Eye, color: 'text-purple-500' },
+  { id: 'detecting', label: 'Detecting watermarks', icon: Zap, color: 'text-orange-500' },
+  { id: 'removing', label: 'Removing watermarks', icon: Sparkles, color: 'text-green-500' },
+  { id: 'reconstructing', label: 'Reconstructing video', icon: Loader2, color: 'text-blue-500' },
   { id: 'complete', label: 'Processing complete', icon: CheckCircle, color: 'text-emerald-500' }
 ]
 
-export function ProcessingStatus({ isProcessing, progress, currentStep }: ProcessingStatusProps) {
+export function ProcessingStatus({ 
+  isProcessing, 
+  progress, 
+  currentStep, 
+  currentFrame, 
+  totalFrames, 
+  detectedWatermarks, 
+  message, 
+  error 
+}: ProcessingStatusProps) {
   const [animatedProgress, setAnimatedProgress] = useState(0)
   
   useEffect(() => {
@@ -35,30 +50,58 @@ export function ProcessingStatus({ isProcessing, progress, currentStep }: Proces
     }
   }, [progress, isProcessing])
 
-  if (!isProcessing && progress === 0) return null
+  if (!isProcessing && progress === 0 && !error) return null
 
   const currentStepIndex = processingSteps.findIndex(step => step.id === currentStep)
   const CurrentIcon = processingSteps[currentStepIndex]?.icon || Loader2
 
   return (
     <Card className="w-full max-w-2xl mx-auto p-8 bg-gradient-to-br from-background to-muted/30">
-      <div className="text-center mb-8">
-        <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-          <CurrentIcon 
-            className={`w-10 h-10 ${processingSteps[currentStepIndex]?.color || 'text-primary'} ${
-              isProcessing && currentStep !== 'complete' ? 'animate-spin' : ''
-            }`} 
-          />
+      {error ? (
+        <div className="text-center mb-8">
+          <div className="mx-auto w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+            <Zap className="w-10 h-10 text-destructive" />
+          </div>
+          
+          <h3 className="text-2xl font-medium mb-2 text-destructive">
+            Processing Failed
+          </h3>
+          
+          <p className="text-muted-foreground mb-4">
+            {error}
+          </p>
         </div>
-        
-        <h3 className="text-2xl font-medium mb-2 text-foreground">
-          {processingSteps[currentStepIndex]?.label || 'Processing...'}
-        </h3>
-        
-        <p className="text-muted-foreground">
-          AI is analyzing your video frame by frame to detect and remove watermarks
-        </p>
-      </div>
+      ) : (
+        <div className="text-center mb-8">
+          <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <CurrentIcon 
+              className={`w-10 h-10 ${processingSteps[currentStepIndex]?.color || 'text-primary'} ${
+                isProcessing && currentStep !== 'complete' ? 'animate-spin' : ''
+              }`} 
+            />
+          </div>
+          
+          <h3 className="text-2xl font-medium mb-2 text-foreground">
+            {processingSteps[currentStepIndex]?.label || 'Processing...'}
+          </h3>
+          
+          <p className="text-muted-foreground">
+            {message || 'AI is analyzing your video frame by frame to detect and remove watermarks'}
+          </p>
+          
+          {/* Frame Progress */}
+          {currentFrame && totalFrames && (
+            <div className="mt-4 text-sm text-muted-foreground">
+              Frame {currentFrame} of {totalFrames}
+              {detectedWatermarks !== undefined && (
+                <span className="ml-4 text-accent font-medium">
+                  {detectedWatermarks} watermarks detected
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="space-y-6">
         <div className="space-y-2">

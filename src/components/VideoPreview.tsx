@@ -7,10 +7,11 @@ import { Badge } from './ui/badge'
 interface VideoPreviewProps {
   originalFile: File | null
   processedVideoUrl: string | null
+  processedVideoBlob: Blob | null
   onReset: () => void
 }
 
-export function VideoPreview({ originalFile, processedVideoUrl, onReset }: VideoPreviewProps) {
+export function VideoPreview({ originalFile, processedVideoUrl, processedVideoBlob, onReset }: VideoPreviewProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentVideo, setCurrentVideo] = useState<'original' | 'processed'>('processed')
 
@@ -29,13 +30,16 @@ export function VideoPreview({ originalFile, processedVideoUrl, onReset }: Video
   }
 
   const handleDownload = () => {
-    if (processedVideoUrl) {
+    if (processedVideoBlob) {
       const link = document.createElement('a')
-      link.href = processedVideoUrl
-      link.download = `${originalFile?.name.replace(/\.[^/.]+$/, '')}_watermark_removed.mp4` || 'processed_video.mp4'
+      link.href = URL.createObjectURL(processedVideoBlob)
+      link.download = originalFile?.name 
+        ? `${originalFile.name.replace(/\.[^/.]+$/, '')}_watermark_removed.webm`
+        : 'processed_video.webm'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      URL.revokeObjectURL(link.href)
     }
   }
 
